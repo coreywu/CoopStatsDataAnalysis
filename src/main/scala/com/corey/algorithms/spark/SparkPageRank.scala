@@ -4,10 +4,14 @@ import scala.collection.immutable.HashMap
 import scala.collection.mutable.Buffer
 import scala.io.Source
 import scala.collection.immutable.HashSet
+import org.apache.spark.SparkConf
+import org.apache.spark.SparkContext
+import org.apache.spark.rdd.RDD
+import org.apache.spark.HashPartitioner
 
-object PageRank {
+object SparkPageRank {
 
-  class Company(val name: String) {
+  class Company(val name: String) extends Serializable {
     var count = 0
     var termCounts: Array[Int] = Array(0, 0, 0, 0, 0, 0)
     val forwardLinks: scala.collection.mutable.HashMap[String, Buffer[Link]] = scala.collection.mutable.HashMap()
@@ -40,7 +44,8 @@ object PageRank {
     }
   }
   
-  class Link(val firstCompanyName: String, val firstTerm: Int, val secondCompanyName: String, val secondTerm: Int) {
+  class Link(val firstCompanyName: String, val firstTerm: Int, val secondCompanyName: String, val secondTerm: Int) 
+      extends Serializable {
     val weight = secondTerm - firstTerm
     
     override def toString(): String = {
@@ -49,7 +54,7 @@ object PageRank {
     }
   }
   
-  class CoopCompanyGraph() {
+  class CoopCompanyGraph() extends Serializable {
     private var companies: HashMap[String, Company] = HashMap()
 
     def contains(companyName: String): Boolean = companies.contains(companyName)
@@ -92,8 +97,6 @@ object PageRank {
   }
   
   def main(args: Array[String]) {
-    val dampingFactor = 0.85
-    
     val filename = "src/main/resources/waterloo_raw.txt"
 
     val coops: Buffer[Buffer[String]] = Buffer()
@@ -134,7 +137,7 @@ object PageRank {
     // A map of companies to forwardly-linked companies and the total weight
     // of forward links to each company, represented as a tuple in the form of
     // (company, weight)
-    var weightedLinksMap: scala.collection.mutable.Map[String, (Set[(String, Int)], Int, Double)] = scala.collection.mutable.HashMap()
+    var weightedLinksSeq: Seq[(String, (Set[(String, Int)], Int, Double))] = Seq()
     
     for (company <- coopCompanyGraph.getCompanyMap().values) {
       var forwardLinksSet: Set[(String, Int)] = HashSet()
@@ -149,40 +152,70 @@ object PageRank {
         forwardLinksSet += ((forwardCompanyLinks._1, totalCompanyWeight))
         totalWeight += totalCompanyWeight
       }
-      weightedLinksMap += company.name -> (forwardLinksSet, totalWeight, 1)
+//      weightedLinksSeq +:= (company.name, (forwardLinksSet, totalWeight, 1))
+      weightedLinksSeq +:= (company.name, (forwardLinksSet, totalWeight, company.count.toDouble))
     }
     
-    var ranks: scala.collection.Map[String, Double] = weightedLinksMap.mapValues(v => 1.0)
+    val conf = new SparkConf().setAppName("Page Rank Algorithm").set("spark.hadoop.validateOutputSpecs", "false")
+    val sc = new SparkContext(conf)
+    
+    val weightedLinksRDD: RDD[(String, (Set[(String, Int)], Int, Double))] = sc.parallelize(weightedLinksSeq)
+        .partitionBy(new HashPartitioner(100))
+        .persist()
+    
+    var ranks: RDD[(String, Double)] = weightedLinksRDD.mapValues(v => 1.0)
 
     for (i <- 0 until 10) {
-      weightedLinksMap.map {
-        case (companyName, (weightedLinks, totalWeight, rank)) => (companyName, (weightedLinks, totalWeight, ranks(companyName)))
+      val ranksMap = ranks.collectAsMap()
+
+      weightedLinksRDD.map {
+        case (companyName, (weightedLinks, totalWeight, rank)) => (companyName, (weightedLinks, totalWeight, ranksMap(companyName)))
       }
 
-      val contributions = weightedLinksMap.toList.flatMap {
+      val contributions: RDD[(String, Double)] = weightedLinksRDD.flatMap {
         case (companyName, (weightedLinks, totalWeight, rank)) => weightedLinks.map(weightedLink => (weightedLink._1, rank * weightedLink._2 / totalWeight)) 
       }
     
-      val nonZeroRanks = contributions.groupBy(_._1).map {
+      val nonZeroRanksMap = contributions.groupBy(_._1).map {
         case (key, value) => (key, value.map(_._2).reduce((x, y) => x + y))
-      }.toMap
+      }.collectAsMap()
       
-      ranks = ranks.map {
-        case (companyName, rank) => (companyName, 1 - dampingFactor + dampingFactor * nonZeroRanks.getOrElse(companyName, 0.0))
-      }
+      ranks = ranks.map{case (companyName, rank) => (companyName, nonZeroRanksMap.getOrElse(companyName, 0.0))}
     }
     
+    ranks = ranks.sortBy(_._2, false)
+
     val companyScores = ranks.map {
       case (companyName, rank) => (companyName, rank / coopCompanyGraph.getCompany(companyName).count)
-    }
+    }.sortBy(_._2, false)
     
     val sqrtCompanyScores = ranks.map {
       case (companyName, rank) => (companyName, rank / math.sqrt(coopCompanyGraph.getCompany(companyName).count))
-    }
+    }.sortBy(_._2, false)
 
-    println(ranks.toList.sortBy(_._2).reverse.take(10))
-    println(sqrtCompanyScores.toList.sortBy(_._2).reverse.take(10))
-    println(companyScores.toList.sortBy(_._2).reverse.take(10))
+    val logCompanyScores = ranks.map {
+      case (companyName, rank) => (companyName, rank / math.log(coopCompanyGraph.getCompany(companyName).count + math.E))
+    }.sortBy(_._2, false)
+    
+    ranks.coalesce(1).saveAsTextFile("spark_results/page_ranks")
+    companyScores.coalesce(1).saveAsTextFile("spark_results/page_ranks_per_student")
+    sqrtCompanyScores.coalesce(1).saveAsTextFile("spark_results/page_ranks_per_sqrt_student")
+    logCompanyScores.coalesce(1).saveAsTextFile("spark_results/page_ranks_per_log_student")
+    
+//    val links = sc.objectFile[(String, Seq[String])]("links")
+//        .partitionBy(new HashPartitioner(100))
+//        .persist()
+//        
+//    var ranks = links.mapValues(v => 1.0)
+//    
+//    for (i <- 0 until 10) {
+//      val contributions = links.join(ranks).flatMap {
+//        case (pageId, (links, rank)) => links.map(dest => (dest, rank / links.size))
+//      }
+//      ranks = contributions.reduceByKey((x, y) => x + y).mapValues(v => 0.15 + 0.85 * v)
+//    }
+//    
+//    ranks.saveAsTextFile("ranks")
   }
   
 }

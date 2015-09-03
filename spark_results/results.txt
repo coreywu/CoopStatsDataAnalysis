@@ -1,0 +1,49 @@
+PageRank without dividing scores by # of coops
+   1 (Facebook,319.70655801915376)
+   2 (Microsoft,270.944404203823)
+   3 (Google,215.67997535525555)
+   4 (Amazon,211.37739585018906)
+   5 (BlackBerry,174.98562695755135)
+   6 (IBM,155.19787713596588)
+   7 (LinkedIn,95.16472459599744)
+   8 (SAP,93.23816854498448)
+   9 (Yelp,87.22035892083304)
+  10 (Desire2Learn,72.54926500822886)
+
+PageRank after dividing each company by # of coops at that company
+   1 (N36,12.674178146623966)
+   2 (Voltera,12.086648983200707)
+   3 (Docker, Inc,9.868669108669108)
+   4 (Tamr Inc.,8.695364979847739)
+   5 (Mapbox,8.673442349912937)
+   6 (Databricks,8.489281045751634)
+   7 (Pivotal,8.25002925002925)
+   8 (AdWear,8.233333333333334)
+   9 (Rubrik, Inc.,7.619503308569804)
+  10 (Tinker,7.036680189317106)
+
+PageRank after diving each company by sqrt of # of coops
+   1 (Facebook,30.90719954243104)
+   2 (Microsoft,25.156556382904373)
+   3 (Amazon,20.33979939911812)
+   4 (Google,20.112261405992818)
+   5 (Palantir Technologies,15.606924403405444)
+   6 (Yelp,14.149010575672719)
+   7 (LinkedIn,14.031273151375915)
+   8 (Snapchat,14.01994442277161)
+   9 (N36,12.674178146623966)
+  10 (IBM,12.671853604875745)
+
+PageRank after diving each company by log of # of coops
+   1 (Facebook,68.0528467489369)
+   2 (Microsoft,56.72145635311653)
+   3 (Google,45.232101989919116)
+   4 (Amazon,44.907136395811584)
+   5 (BlackBerry,31.49636856327184)
+   6 (IBM,30.86306996900121)
+   7 (LinkedIn,24.488778556586922)
+   8 (Yelp,23.5306056519204)
+   9 (Palantir Technologies,21.582425064980182)
+  10 (SAP,20.045728175665218)
+
+
