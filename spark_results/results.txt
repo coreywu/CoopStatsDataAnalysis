@@ -46,4 +46,14 @@ PageRank after diving each company by log of # of coops
    9 (Palantir Technologies,21.582425064980182)
   10 (SAP,20.045728175665218)
 
-
+PageRank from GraphX
+   1 (Facebook,55.58301632055132)
+   2 (Microsoft,49.791693035603146)
+   3 (Google,41.22007533100116)
+   4 (Amazon,32.63831094376818)
+   5 (BlackBerry,25.21652977368365)
+   6 (IBM,19.770585473950558)
+   7 (LinkedIn,19.068360950444585)
+   8 (Palantir Technologies,18.960865960114482)
+   9 (Yelp,12.71846378573831)
+  10 (SAP,12.64588686733216)
