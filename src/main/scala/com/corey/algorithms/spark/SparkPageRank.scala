@@ -35,7 +35,6 @@ object SparkPageRank {
         forwardLinksSet += ((forwardCompanyLinks._1, totalCompanyWeight))
         totalWeight += totalCompanyWeight
       }
-//      weightedLinksSeq +:= (company.name, (forwardLinksSet, totalWeight, 1))
       weightedLinksSeq +:= (company.name, (forwardLinksSet, totalWeight, company.count.toDouble))
     }
     

@@ -9,9 +9,7 @@ object RandomWalk {
   
   def main(args: Array[String]) = {
     val iterations = 10000
-    
     val filename = "src/main/resources/waterloo_raw.txt"
-    val coopCompanyGraph: GraphBuilder.CoopCompanyGraph = GraphBuilder.buildCoopCompanyGraph(filename) 
     
     val coops: Buffer[Buffer[String]] = Buffer()
 
